@@ -37,6 +37,7 @@ namespace mars{
 
 #define DEFAULT_LONGLINK_NAME "default-longlink"
 #define DEFAULT_LONGLINK_GROUP "default-group"
+#define RUNON_MAIN_LONGLINK_NAME "!run-on-main!"
 struct TaskProfile;
 struct DnsProfile;
 struct ConnectProfile;
@@ -120,7 +121,8 @@ public:
     int protocol;
     
     std::map<std::string, std::string> headers;
-    std::vector<std::string> shortlink_host_list;
+    std::vector<std::string> shortlink_host_list;   // current using hosts, may be quic host or tcp host
+    std::vector<std::string> shortlink_fallback_hostlist;   // for fallback
     std::vector<std::string> longlink_host_list;
     std::vector<std::string> minorlong_host_list;
     std::vector<std::string> quic_host_list;
@@ -162,14 +164,16 @@ public:
     std::string     group;   
     LongLinkEncoder* longlink_encoder;
     bool            isMain;
-    int             link_type = Task::kChannelLong;
-    std::vector<std::string> (*dns_func)(const std::string& host);
+	int             link_type = Task::kChannelLong;
+    int             packer_encoder_version = PackerEncoderVersion::kOld;
+    std::vector<std::string> (*dns_func)(const std::string& _host, bool _longlink_host);
     bool            need_tls;
 };
-
+    
 struct QuicParameters{
     bool enable_0rtt = true;
     std::string alpn;
+    std::string hostname;
 };
 struct ShortlinkConfig {
 public:
@@ -223,6 +227,7 @@ enum {
 	kEctLocalCgiFrequcencyLimit = -13,
 	kEctLocalChannelID = -14,
     kEctLocalLongLinkReleased = -15,
+    kEctLocalLongLinkUnAvailable = -16,
 };
 
 // -600 ~ -500
@@ -288,6 +293,13 @@ enum IPSourceType {
     kIPSourceProxy,
     kIPSourceBackup,
 };
+    
+enum TlsHandshakeFrom {
+    kNoHandshaking = -1,
+    kFromSetting = 0,
+    kFromLongLink  = 1,
+    kFromShortLink = 2,
+};
 
 const char* const IPSourceTypeString[] = {
     "NullIP",
@@ -297,12 +309,24 @@ const char* const IPSourceTypeString[] = {
     "ProxyIP",
     "BackupIP",
 };
+    
+const char* const ChannelTypeString[] = {
+    "",
+    "Short",
+    "Long",
+    "",
+    "MinorLong",
+    "",
+    "",
+    "",
+};
 
 struct IPPortItem {
     std::string		str_ip;
     uint16_t 		port;
     IPSourceType 	source_type;
     std::string 	str_host;
+    int transport_protocol = Task::kTransportProtocolTCP; // tcp or quic?
 };
         
 extern bool MakesureAuthed(const std::string& _host, const std::string& _user_id);
@@ -311,7 +335,7 @@ extern bool MakesureAuthed(const std::string& _host, const std::string& _user_id
 extern void TrafficData(ssize_t _send, ssize_t _recv);
         
 //底层询问上层该host对应的ip列表 
-extern std::vector<std::string> OnNewDns(const std::string& host);
+extern std::vector<std::string> OnNewDns(const std::string& _host, bool _longlink_host);
 //网络层收到push消息回调 
 extern void OnPush(const std::string& _channel_id, uint32_t _cmdid, uint32_t _taskid, const AutoBuffer& _body, const AutoBuffer& _extend);
 //底层获取task要发送的数据 

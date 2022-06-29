@@ -34,6 +34,9 @@
 #define snprintf _snprintf
 #endif
 
+namespace mars {
+namespace xlog {
+
 bool LogBaseBuffer::GetPeriodLogs(const char* _log_path, int _begin_hour, int _end_hour, unsigned long& _begin_pos, unsigned long& _end_pos, std::string& _err_msg) {
 
     char msg[1024] = {0};
@@ -246,17 +249,17 @@ bool LogBaseBuffer::Write(const void* _data, size_t _length) {
 
     before_len -= remain_nocrypt_len_;
 
-    AutoBuffer out_buffer;
+    std::string out_buffer;
     size_t last_remain_len = remain_nocrypt_len_;
 
     log_crypt_->CryptAsyncLog((char*)buff_.Ptr() + before_len, write_len + remain_nocrypt_len_, out_buffer, remain_nocrypt_len_);
 
-    buff_.Write(out_buffer.Ptr(), out_buffer.Length(), before_len);
+    buff_.Write(out_buffer.data(), out_buffer.size(), before_len);
 
-    before_len += out_buffer.Length();
+    before_len += out_buffer.size();
     buff_.Length(before_len, before_len);
 
-    log_crypt_->UpdateLogLen((char*)buff_.Ptr(), (uint32_t)(out_buffer.Length() - last_remain_len));
+    log_crypt_->UpdateLogLen((char*)buff_.Ptr(), (uint32_t)(out_buffer.size() - last_remain_len));
 
     return true;
 }
@@ -296,4 +299,6 @@ char LogBaseBuffer::__GetMagicEnd() {
     return LogMagicNum::kMagicEnd;
 }
 
+}
+}
 

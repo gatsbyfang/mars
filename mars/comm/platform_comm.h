@@ -22,6 +22,7 @@
 #define COMM_PLATFORM_COMM_H_
 
 #include <string>
+#include <functional>
 
 #ifdef ANDROID 
 #include "mars/comm/thread/mutex.h"
@@ -31,6 +32,9 @@
 #ifndef __cplusplus
 #error "C++ only"
 #endif
+
+namespace mars {
+namespace comm {
 
 enum NetType {
     kNoNet = -1,
@@ -96,6 +100,8 @@ __CXX11_CONSTEXPR__ static const char* const CDMA  = "CDMA";
 __CXX11_CONSTEXPR__ static const char* const HSPA = "HSPA";
 __CXX11_CONSTEXPR__ static const char* const IDEN = "IDEN";
 __CXX11_CONSTEXPR__ static const char* const HSPAP = "HSPA+";
+__CXX11_CONSTEXPR__ static const char* const G5 = "5G";
+__CXX11_CONSTEXPR__ static const char* const WIFI = "WIFI";
 
 
 struct RadioAccessNetworkInfo {
@@ -185,12 +191,15 @@ struct RadioAccessNetworkInfo {
         LTE TDD：世博会展出对象，尖端技术，比FDD早发展一年，网速和FDD差不多，但不成熟，兼容性弱！（湖北移动、上海移动已启动试运营，国家大力推广）
     ***/
 
+
+
     std::string  radio_access_network;
 
     bool Is2G() const { return radio_access_network == GPRS || radio_access_network == CDMA1x || radio_access_network == Edge || radio_access_network == CDMAEVDORev0 || radio_access_network == UMTS || radio_access_network == CDMA;}
     bool Is3G() const { return radio_access_network == WCDMA || radio_access_network == CDMAEVDORevA || radio_access_network == HSDPA || radio_access_network == HSUPA || radio_access_network == CDMAEVDORevB || radio_access_network == eHRPD || radio_access_network == HSPAP || radio_access_network == HSPA;}
     bool Is4G() const { return radio_access_network == LTE;}
-    bool IsUnknown() const { return !Is2G() && !Is3G() && !Is4G();}
+    bool Is5G() const { return radio_access_network == G5;}
+    bool IsUnknown() const { return !Is2G() && !Is3G() && !Is4G() && !Is5G();}
 };
 
 bool getCurRadioAccessNetworkInfo(RadioAccessNetworkInfo& _raninfo);
@@ -199,6 +208,9 @@ unsigned int getSignal(bool isWifi);
 bool isNetworkConnected();
 
 bool getifaddrs_ipv4_hotspot(std::string& _ifname, std::string& _ifip);
+
+void SetWiFiIdCallBack(std::function<bool(std::string&)> _cb);
+void ResetWiFiIdCallBack();
 
 inline int getCurrNetLabel(std::string& netInfo) {
     netInfo = "defalut";
@@ -262,6 +274,38 @@ void  wakeupLock_Lock(void* _object);
 void  wakeupLock_Lock_Timeout(void* _object, int64_t _timeout);
 void  wakeupLock_Unlock(void* _object);
 bool  wakeupLock_IsLocking(void* _object);
+
+#ifdef NATIVE_CALLBACK
+    #include <memory>
+    class PlatformNativeCallback {
+    public:
+        PlatformNativeCallback() = default;
+        virtual ~PlatformNativeCallback() = default;
+        bool getProxyInfo(int& port, std::string& strProxy, const std::string& _host){return false;}
+        bool getAPNInfo(APNInfo& info){return false;}
+        virtual int getNetInfo() {return -1;}
+        virtual int getNetTypeForStatistics();
+        virtual bool getCurRadioAccessNetworkInfo(struct RadioAccessNetworkInfo& _info) {return false;}
+        virtual bool getCurWifiInfo(WifiInfo& _wifi_info, bool _force_refresh = false) {return false;}
+        virtual bool getCurSIMInfo(SIMInfo& _sim_info) {return false;}
+        virtual unsigned int getSignal(bool isWifi) {return -1;}
+        virtual bool isNetworkConnected() {return false;}
+        virtual bool getifaddrs_ipv4_hotspot(std::string& _ifname, std::string& _ifip) {return false;}
+        virtual int getCurrNetLabel(std::string& netInfo) {return -1;}
+
+        virtual bool startAlarm(int type, int64_t id, int after) {return false;}
+        virtual bool stopAlarm(int64_t id) {return false;}
+        void* wakeupLock_new() {return nullptr;}
+        void  wakeupLock_delete(void* _object) {}
+        void  wakeupLock_Lock(void* _object) {}
+        void  wakeupLock_Lock_Timeout(void* _object, int64_t _timeout) {}
+        void  wakeupLock_Unlock(void* _object) {}
+        bool  wakeupLock_IsLocking(void* _object) {return false;}
+    };
+    extern void SetPlatformNativeCallbackInstance(std::shared_ptr<PlatformNativeCallback> _cb);
+
+#endif
+
 #endif
 
 #ifdef ANDROID
@@ -271,5 +315,11 @@ bool  wakeupLock_IsLocking(void* _object);
 	extern APNInfo g_apn_info;
 	extern Mutex g_net_mutex;
 #endif
+
+#ifdef ANDROID
+    std::string GetCurrentProcessName();
+#endif
+
+}}
 
 #endif /* COMM_PLATFORM_COMM_H_ */

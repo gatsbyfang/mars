@@ -31,17 +31,19 @@
 #include "mars/stn/stn.h"
 
 #include "longlink_metadata.h"
+#include "task_intercept.h"
 
 class AutoBuffer;
-class ActiveLogic;
 
 struct STChannelResp;
 
+namespace mars {
+namespace comm {
+class ActiveLogic;
 #ifdef ANDROID
 class WakeUpLock;
 #endif
-
-namespace mars {
+}
     namespace stn {
 
 struct TaskProfile;
@@ -59,10 +61,11 @@ class LongLinkTaskManager {
     boost::function<void (const std::string& _channel_id, uint32_t _cmdid, uint32_t _taskid, const AutoBuffer& _body, const AutoBuffer& _extend)> fun_on_push_;
     
     static boost::function<void (const std::string& _user_id, std::vector<std::string>& _host_list)> get_real_host_;
-    static boost::function<void (uint32_t _version)> on_handshake_ready_;
+    static boost::function<void (uint32_t _version, mars::stn::TlsHandshakeFrom _from)> on_handshake_ready_;
+    static boost::function<bool (int _error_code)> should_intercept_result_;
 
   public:
-    LongLinkTaskManager(mars::stn::NetSource& _netsource, ActiveLogic& _activelogic, DynamicTimeout& _dynamictimeout, MessageQueue::MessageQueue_t  _messagequeueid);
+    LongLinkTaskManager(mars::stn::NetSource& _netsource, comm::ActiveLogic& _activelogic, DynamicTimeout& _dynamictimeout, comm::MessageQueue::MessageQueue_t  _messagequeueid);
     virtual ~LongLinkTaskManager();
 
     bool StartTask(const Task& _task, int _channel);
@@ -70,11 +73,13 @@ class LongLinkTaskManager {
     bool HasTask(uint32_t _taskid) const;
     void ClearTasks();
     void RedoTasks();
+    void TouchTasks();
     void RetryTasks(ErrCmdType _err_type, int _err_code, int _fail_handle, uint32_t _src_taskid, std::string _user_id);
 
     // LongLink& LongLinkChannel(const std::string& _name) { return *longlink_; }
     // LongLinkConnectMonitor& getLongLinkConnectMonitor(const std::) { return *longlinkconnectmon_; }
     std::shared_ptr<LongLinkMetaData> GetLongLink(const std::string& _name);
+    std::shared_ptr<LongLinkMetaData> GetLongLinkNoLock(const std::string& _name);
     void FixMinorRealhost(Task& _task);
 
     unsigned int GetTaskCount(const std::string& _name);
@@ -83,16 +88,8 @@ class LongLinkTaskManager {
     bool AddLongLink(LonglinkConfig& _config);
     bool AddMinorLink(const std::vector<std::string>& _hosts);
     bool IsMinorAvailable(const Task& _task);
-    
-    std::shared_ptr<LongLinkMetaData> DefaultLongLink() {
-        ScopedLock lock(meta_mutex_);
-        for(auto& item : longlink_metas_) {
-            if(item.second->Config().IsMain()) {
-                return item.second;
-            }
-        }
-        return nullptr;
-    }
+
+    std::shared_ptr<LongLinkMetaData> DefaultLongLink();
     void OnNetworkChange();
     ConnectProfile GetConnectProfile(uint32_t _taskid);
     void ReleaseLongLink(const std::string _name);
@@ -106,7 +103,7 @@ class LongLinkTaskManager {
     void __OnSend(uint32_t _taskid);
     void __OnRecv(uint32_t _taskid, size_t _cachedsize, size_t _totalsize);
     void __SignalConnection(LongLink::TLongLinkStatus _connect_status, const std::string& _channel_id);
-    void __OnHandshakeCompleted(uint32_t _version);
+    void __OnHandshakeCompleted(uint32_t _version, mars::stn::TlsHandshakeFrom _from);
 
     void __RunLoop();
     void __RunOnTimeout();
@@ -121,12 +118,12 @@ class LongLinkTaskManager {
     void __ResetLongLink(const std::string& _name);
 #endif
     void __Disconnect(const std::string& _name, LongLink::TDisconnectInternalCode code);
-    void __RedoTasks(const std::string& _name);
+    void __RedoTasks(const std::string& _name, bool need_lock_link = true);
     void __DumpLongLinkChannelInfo();
     bool __ForbidUseTls(const std::vector<std::string>& _host_list);
 
   private:
-    MessageQueue::ScopeRegister     asyncreg_;
+    comm::MessageQueue::ScopeRegister     asyncreg_;
     std::list<TaskProfile>          lst_cmd_;
     uint64_t                        lastbatcherrortime_;   // ms
     unsigned long                   retry_interval_;	//ms
@@ -137,14 +134,21 @@ class LongLinkTaskManager {
     DynamicTimeout&                 dynamic_timeout_;
 
     NetSource&                      netsource_;
-    ActiveLogic&                    active_logic_;
+    comm::ActiveLogic&              active_logic_;
 
 #ifdef ANDROID
-    WakeUpLock*                     wakeup_lock_;
+    comm::WakeUpLock*                     wakeup_lock_;
 #endif
-    Mutex                           meta_mutex_;
-    Mutex                           mutex_;
+#ifndef _WIN32
+    typedef  comm::ScopedLock MetaScopedLock;
+    comm::Mutex                     meta_mutex_;
+#else // _WIN32
+    typedef  comm::ScopedRecursiveLock MetaScopedLock;
+    comm::RecursiveMutex            meta_mutex_;
+#endif
+    comm::Mutex                     mutex_;
     static std::set<std::string>    forbid_tls_host_;
+    TaskIntercept                   task_intercept_;
 };
     }
 }

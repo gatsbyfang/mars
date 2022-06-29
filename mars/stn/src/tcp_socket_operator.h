@@ -10,13 +10,14 @@
 
 #include "comm/socket/socketbreaker.h"
 #include "comm/socket/complexconnect.h"
+#include "mars/stn/stn.h"
 
 namespace mars {
 	namespace stn {
 
 class TcpSocketOperator : public SocketOperator {
 public:
-	TcpSocketOperator(std::shared_ptr<MComplexConnect> _observer);
+	TcpSocketOperator(std::shared_ptr<comm::MComplexConnect> _observer);
 	virtual ~TcpSocketOperator() override{
 	}
 
@@ -26,8 +27,15 @@ public:
 	                       const std::string &_proxy_username = "", const std::string &_proxy_pwd = "") override;
     
     virtual void Close(SOCKET _sock) override;
-    virtual SocketCloseFunction GetCloseFunction() const override;
-
+    SocketCloseFunc GetCloseFunction() const override{
+        return &socket_close;
+    }
+    CreateStreamFunc GetCreateStreamFunc() const override{
+        return nullptr;
+    }
+    IsSubStreamFunc GetIsSubStreamFunc() const override{
+        return nullptr;
+    }
 	virtual int
 	Send(SOCKET _sock, const void *_buffer, size_t _len, int &_errcode, int _timeout) override;
 
@@ -38,9 +46,21 @@ public:
 	virtual std::string ErrorDesc(int _errcode) override;
     
     std::string Identify(SOCKET _sock) const override;
+    int Protocol() const override{
+        return Task::kTransportProtocolTCP;
+    }
+    virtual SOCKET CreateStream(SOCKET _sock) override{
+        return INVALID_SOCKET;
+    }
+    void SetIpConnectionTimeout(uint32_t _v4_timeout, uint32_t _v6_timeout) override {
+        v4_timeout_ = _v4_timeout;
+        v6_timeout_ = _v6_timeout;
+    }
 private:
-    std::shared_ptr<MComplexConnect> observer_;
-	SocketBreaker sBreaker_;
+    std::shared_ptr<comm::MComplexConnect> observer_;
+	comm::SocketBreaker sBreaker_;
+    uint32_t v4_timeout_;
+    uint32_t v6_timeout_;
 };
 
 }

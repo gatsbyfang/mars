@@ -33,11 +33,11 @@ namespace mars {
 
 class LongLinkMetaData {
 public: 
-    LongLinkMetaData(const LonglinkConfig& _config, NetSource& _netsource, ActiveLogic& _activeLogic, MessageQueue::MessageQueue_t _message_id);
+    LongLinkMetaData(const LonglinkConfig& _config, NetSource& _netsource, comm::ActiveLogic& _activeLogic, comm::MessageQueue::MessageQueue_t _message_id);
 
     virtual ~LongLinkMetaData();
     std::shared_ptr<LongLink> Channel() {
-        if(!longlink_) { // do not use (longlink_ == nullptr), or may cause NPE when someone calls this function
+        if(!longlink_) {
             xassert2(false, TSF"null longlink, name:%_", config_.name.c_str());
             return nullptr;
         }
@@ -56,6 +56,11 @@ public:
     std::shared_ptr<NetSourceTimerCheck> Checker() {
         return netsource_checker_;
     }
+    
+    bool IsConnected() const{
+        if (!longlink_) return false;
+        return longlink_->ConnectStatus() == LongLink::TLongLinkStatus::kConnected;
+    }
 
 private:
     void __OnTimerCheckSuc(const std::string& _name);
@@ -66,7 +71,7 @@ private:
     std::shared_ptr<NetSourceTimerCheck> netsource_checker_;
     std::shared_ptr<SignallingKeeper> signal_keeper_;
     LonglinkConfig config_;
-    MessageQueue::ScopeRegister asyncreg_;
+    comm::MessageQueue::ScopeRegister asyncreg_;
 };
 
     }

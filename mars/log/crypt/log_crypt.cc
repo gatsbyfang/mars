@@ -36,6 +36,9 @@
 #include "micro-ecc-master/uECC.h"
 #endif
 
+namespace mars {
+namespace xlog {
+
 const static int TEA_BLOCK_LEN = 8;
 
 static void __TeaEncrypt (uint32_t* v, uint32_t* k) {
@@ -245,12 +248,11 @@ void LogCrypt::CryptSyncLog(const char* const _log_data,
 
 }
 
-void LogCrypt::CryptAsyncLog(const char* const _log_data, size_t _input_len, AutoBuffer& _out_buff, size_t& _remain_nocrypt_len) {
+void LogCrypt::CryptAsyncLog(const char* const _log_data, size_t _input_len, std::string& _out_buff, size_t& _remain_nocrypt_len) {
     
-	_out_buff.AllocWrite(_input_len);
     
     if (!is_crypt_) {
-        memcpy(_out_buff.Ptr(), _log_data, _input_len);
+        _out_buff.assign(_log_data, _input_len);
         _remain_nocrypt_len = 0;
         return;
     }
@@ -262,10 +264,9 @@ void LogCrypt::CryptAsyncLog(const char* const _log_data, size_t _input_len, Aut
     for (size_t i = 0; i < cnt; ++i) {
         memcpy(tmp, _log_data + i * TEA_BLOCK_LEN, TEA_BLOCK_LEN);
         __TeaEncrypt(tmp, tea_key_);
-        memcpy((char*)_out_buff.Ptr() + i * TEA_BLOCK_LEN, tmp, TEA_BLOCK_LEN);
+        _out_buff.append((char*)tmp, TEA_BLOCK_LEN);
     }
-    
-    memcpy((char*)_out_buff.Ptr() + _input_len - _remain_nocrypt_len, _log_data + _input_len - _remain_nocrypt_len, _remain_nocrypt_len);
+    _out_buff.append(_log_data + _input_len - _remain_nocrypt_len, _remain_nocrypt_len);
 #endif
 }
 
@@ -288,4 +289,7 @@ bool LogCrypt::Fix(char* _data, size_t _data_len, uint32_t& _raw_log_len) {
 
 bool LogCrypt::IsCrypt() {
     return is_crypt_;
+}
+
+}
 }

@@ -72,7 +72,7 @@ class NetCore {
     boost::signals2::signal<void (uint32_t _cmdid, const AutoBuffer& _buffer)> push_preprocess_signal_;
 
   public:
-    MessageQueue::MessageQueue_t GetMessageQueueId() { return messagequeue_creater_.GetMessageQueue(); }
+    comm::MessageQueue::MessageQueue_t GetMessageQueueId() { return messagequeue_creater_.GetMessageQueue(); }
     NetSource& GetNetSourceRef() {return *net_source_;}
     
     void    CancelAndWait() { messagequeue_creater_.CancelAndWait(); }
@@ -82,11 +82,13 @@ class NetCore {
     bool    HasTask(uint32_t _taskid) const;
     void    ClearTasks();
     void    RedoTasks();
+    void    TouchTasks();
     void    RetryTasks(ErrCmdType _err_type, int _err_code, int _fail_handle, uint32_t _src_taskid, std::string _user_id);
 
     void    MakeSureLongLinkConnect();
     bool    LongLinkIsConnected();
     void    OnNetworkChange();
+    bool    UseLongLink() {return need_use_longlink_; }
 
     void	KeepSignal();
     void	StopSignal();
@@ -95,6 +97,8 @@ class NetCore {
     void AddServerBan(const std::string& _ip);
     void SetDebugHost(const std::string& _host);
     void ForbidLonglinkTlsHost(const std::vector<std::string>& _host);
+    void InitHistory2BannedList();
+    void SetIpConnectTimeout(uint32_t _v4_timeout, uint32_t _v6_timeout);
 
 public:
     
@@ -142,9 +146,12 @@ public:
     NetCore(const NetCore&);
     NetCore& operator=(const NetCore&);
 
+  public:
+    static bool need_use_longlink_;
+
   private:
-    MessageQueue::MessageQueueCreater           messagequeue_creater_;
-    MessageQueue::ScopeRegister                 asyncreg_;
+    comm::MessageQueue::MessageQueueCreater           messagequeue_creater_;
+    comm::MessageQueue::ScopeRegister                 asyncreg_;
     NetSource*                                  net_source_;
     NetCheckLogic*                              netcheck_logic_;
     AntiAvalanche*                              anti_avalanche_;

@@ -28,6 +28,10 @@
 #include "comm/thread/lock.h"
 
 class XLogger;
+
+namespace mars {
+namespace comm {
+
 class SocketSelect;
 
 class TcpServerFSM {
@@ -83,7 +87,7 @@ class TcpServerFSM {
     virtual void _OnAccept() = 0;
     virtual void _OnRecv(AutoBuffer& _recv_buff, ssize_t _recv_len) = 0;
     virtual void _OnSend(AutoBuffer& _send_buff, ssize_t _send_len) = 0;
-    virtual void _OnClose(TSocketStatus _status, int _error, bool _userclose) = 0;
+    virtual void _OnClose(TSocketStatus _status, int _error, bool _remoteclose) = 0;
 
 
   protected:
@@ -98,5 +102,7 @@ class TcpServerFSM {
     bool is_write_fd_set_;
     Mutex write_fd_set_mutex_;
 };
+}
+}
 
 #endif /* TcpServerFSM_H_ */

@@ -18,7 +18,7 @@
 //
 
 #include "http.h"
-
+#include <stdio.h>
 #include <cstddef>
 #include <stdlib.h>
 #ifdef WIN32
@@ -177,7 +177,7 @@ bool RequestLine::FromString(const std::string& _requestline) {
 
     if (strVer.size() < 3) {
 //        xerror2(TSF"requestline:%_, strver:%_", _requestline.c_str(), str.c_str());
-        xassert2(false, "requestline:%s, strver:%s", _requestline.c_str(), str.c_str());
+        xassert2(false, TSF"requestline:%_, strver:%_", _requestline.c_str(), str.c_str());
         return false;
     }
 
@@ -732,7 +732,6 @@ Parser::TRecvStatus Parser::Recv(const void* _buffer, size_t _length, size_t* co
         return  recvstatus_;
     }
     
-    xassert2(_buffer);
     if ((NULL == _buffer || 0 == _length)){
         xwarn2(TSF"Recv(%_, %_), status:%_", NULL==_buffer?"NULL":_buffer, _length, recvstatus_);
         return recvstatus_;

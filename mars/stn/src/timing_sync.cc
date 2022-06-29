@@ -31,6 +31,7 @@
 
 using namespace mars::stn;
 using namespace mars::app;
+using namespace mars::comm;
 
 #define ACTIVE_SYNC_INTERVAL (90*1000)
 #define UNLOGIN_SYNC_INTERVAL (4*60*1000)
@@ -39,7 +40,7 @@ using namespace mars::app;
 
 
 #ifdef __ANDROID__
-static const int kAlarmType = 105;
+static const int kAlarmType = 119;
 #endif
 
 
